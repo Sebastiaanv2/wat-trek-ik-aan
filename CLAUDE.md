@@ -32,15 +32,14 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
 
 ## Status
 - Engine tested with 6 synthetic scenarios, all sensible.
-- Live API never tested yet: the claude.ai preview sandbox blocks outside fetches ("Failed to fetch").
-  Must run in a real browser or on GitHub Pages.
+- Live API tested 2026-10-29 on GitHub Pages (Utrecht): geocoding + forecast work, adapter field mapping
+  matches, outfit cards and hourly table render. All 7 hourly fields filled, 0 nulls in 48 h.
 - Geolocation needs HTTPS or localhost.
 
 ## Known issues (code review 2026-10-29, not fixed yet)
-1. [Inference] `precipitation_probability` may be all null for `knmi_seamless` (HARMONIE is deterministic).
-   `summarise()` treats null as 0, so rain then only triggers on `rainSum >= 0.5 mm`. Verify on first live run.
+1. RESOLVED: `precipitation_probability` is filled for `knmi_seamless` (values 0-6% in test run, 0 nulls).
 2. Hourly table crashes if the API returns null precip: `h.precip.toFixed(1)` in `render()`.
-   Null temp/gust silently become 0 in `Math.round`/`Math.max`.
+   Null temp/gust silently become 0 in `Math.round`/`Math.max`. Not seen in live test (0 nulls), still unguarded.
 3. Default "from" hour uses browser local time (`new Date().getHours()`), filter uses Amsterdam time.
    Only wrong outside the NL timezone.
 4. From > To gives an empty window. Error shown, but the UI doesn't prevent it.
@@ -49,7 +48,7 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
 ## Next steps
 1. DONE 2026-10-29: repo https://github.com/Sebastiaanv2/wat-trek-ik-aan (public),
    Pages (main / root) at https://sebastiaanv2.github.io/wat-trek-ik-aan/
-2. First real run: check the API response matches the adapter's field mapping.
+2. DONE 2026-10-29: first real run, field mapping matches.
 3. Calibrate thresholds against the owner's actual experience.
 
 ## Working style for this owner
