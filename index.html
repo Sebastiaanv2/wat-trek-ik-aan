@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What To Wear</title>
+<style>
+  :root {
+    --bg: #f4f2ee; --card: #ffffff; --text: #1d1d1b; --muted: #6b6a66;
+    --line: #e2dfd8; --accent: #2f6f5e; --warn: #b5562a; --chip: #eef3f1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161716; --card: #202221; --text: #ecebe7; --muted: #9b9a95;
+      --line: #333532; --accent: #6fbfa8; --warn: #e3895c; --chip: #263330;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  label { font-size: .9rem; color: var(--muted); }
+  input, select, button {
+    font: inherit; padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  }
+  button { background: var(--accent); color: #fff; border: 0; cursor: pointer; }
+  button.secondary { background: var(--chip); color: var(--text); }
+  #citySearch { flex: 1 1 180px; }
+  #results button { background: var(--chip); color: var(--text); }
+  .outfit { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .item { background: var(--chip); border-radius: 10px; padding: 12px; }
+  .item .slot { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .item .what { font-size: 1.1rem; font-weight: 600; margin: 2px 0 4px; }
+  .item .why { font-size: .85rem; color: var(--muted); }
+  .item.alert .what { color: var(--warn); }
+  .stats { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; color: var(--muted); font-size: .9rem; }
+  .stats b { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th, td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  .tablewrap { overflow-x: auto; }
+  #status { color: var(--muted); font-size: .9rem; min-height: 1.2em; }
+  #status.error { color: var(--warn); }
+  footer { color: var(--muted); font-size: .8rem; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>What To Wear</h1>
+  <p class="sub">Clothing advice from the KNMI HARMONIE forecast. Proof of concept.</p>
+
+  <!-- 1. LOCATION -->
+  <section class="card">
+    <div class="row">
+      <button id="btnGeo">Use my location</button>
+      <input id="citySearch" placeholder="or search a place, e.g. Utrecht">
+      <button id="btnSearch" class="secondary">Search</button>
+    </div>
+    <div id="results" class="row" style="margin-top:8px"></div>
+    <p id="status"></p>
+  </section>
+
+  <!-- 2. TIME WINDOW + PERSONAL OFFSET -->
+  <section class="card">
+    <div class="row">
+      <label>Day <select id="day"><option value="0">Today</option><option value="1">Tomorrow</option></select></label>
+      <label>From <select id="fromHour"></select></label>
+      <label>To <select id="toHour"></select></label>
+      <label title="Positive if you run warm, negative if you get cold easily">
+        I run <select id="offset">
+          <option value="-4">very cold (−4°)</option>
+          <option value="-2">cold (−2°)</option>
+          <option value="0" selected>normal</option>
+          <option value="2">warm (+2°)</option>
+          <option value="4">very warm (+4°)</option>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <!-- 3. RESULT -->
+  <section class="card" id="resultCard" hidden>
+    <h2 id="placeName" style="margin:0 0 8px;font-size:1.2rem"></h2>
+    <div class="stats" id="stats"></div>
+    <div class="outfit" id="outfit"></div>
+  </section>
+
+  <!-- 4. HOURLY DETAIL -->
+  <section class="card" id="hourlyCard" hidden>
+    <div class="tablewrap"><table id="hourly"></table></div>
+  </section>
+
+  <footer>
+    Weather data: KNMI HARMONIE-AROME via <a href="https://open-meteo.com/en/docs/knmi-api">Open-Meteo</a> (CC BY 4.0).
+    Clothing advice is derived by this app, not an official KNMI product.
+  </footer>
+</main>
+
+<!-- ============================================================
+     ENGINE: pure functions, no DOM. Testable in Node.
+     ============================================================ -->
+<script id="engine">
+/**
+ * Thresholds in °C "feels like" (apparent temperature).
+ * Sourced from Dutch consumer clothing guides (see README notes);
+ * there is no official standard, so these are starting points to tune.
+ */
+const RULES = {
+  shortsMinAvg: 20,     // NL guides: shorts from ~20°C
+  shortsMinLow: 16,     // [own choice] don't suggest shorts if the coldest hour is chilly
+  tshirtOnly: 20,       // 20+: t-shirt, no jacket
+  noCoatWithSweater: 15,// 15-20: thin sweater/vest instead of a jacket
+  lightJacket: 10,      // 10-15: summer/tussen jacket
+                        // below 10: winter jacket
+  scarfBelow: 5,        // [own choice]
+  glovesHatBelow: 2,    // [own choice]
+  rainProbPct: 40,      // [own choice] chance of rain in any hour
+  rainSumMm: 0.5,       // [own choice] total over the window
+  umbrellaMaxGust: 45,  // [own choice] km/h, above this umbrellas are useless
+  bigSwing: 8,          // [own choice] °C difference that warrants layering
+};
+
+const WMO = {
+  0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast",
+  45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle",
+  56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain",
+  66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow",
+  77: "Snow grains", 80: "Light showers", 81: "Showers", 82: "Heavy showers",
+  85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm",
+};
+
+/** Summarise the hours inside the chosen window. */
+function summarise(hours, offset = 0) {
+  if (!hours.length) return null;
+  const feels = hours.map(h => h.feels + offset);
+  const sum = a => a.reduce((x, y) => x + y, 0);
+  return {
+    feelsMin: Math.min(...feels),
+    feelsMax: Math.max(...feels),
+    feelsAvg: sum(feels) / feels.length,
+    tempMin: Math.min(...hours.map(h => h.temp)),
+    tempMax: Math.max(...hours.map(h => h.temp)),
+    rainProbMax: Math.max(...hours.map(h => h.precipProb ?? 0)),
+    rainSum: sum(hours.map(h => h.precip ?? 0)),
+    gustMax: Math.max(...hours.map(h => h.gust ?? 0)),
+    snow: hours.some(h => [71, 73, 75, 77, 85, 86].includes(h.code)),
+  };
+}
+
+/** Turn a summary into outfit slots, each with a reason. */
+function recommend(s, r = RULES) {
+  const out = [];
+  const f = n => `${Math.round(n)}°`;
+  const rain = s.rainProbMax >= r.rainProbPct || s.rainSum >= r.rainSumMm;
+
+  // Legs
+  if (s.feelsAvg >= r.shortsMinAvg && s.feelsMin >= r.shortsMinLow) {
+    out.push({ slot: "Legs", what: "Shorts", why: `Feels like ${f(s.feelsAvg)} on average` });
+  } else {
+    out.push({ slot: "Legs", what: "Long pants", why: s.feelsAvg >= r.shortsMinAvg
+      ? `Warm on average, but drops to ${f(s.feelsMin)}`
+      : `Feels like ${f(s.feelsAvg)} on average, shorts start around ${r.shortsMinAvg}°` });
+  }
+
+  // Top
+  if (s.feelsMin >= r.tshirtOnly) {
+    out.push({ slot: "Top", what: "T-shirt", why: `Coldest hour still feels like ${f(s.feelsMin)}` });
+  } else if (s.feelsMin >= r.noCoatWithSweater) {
+    out.push({ slot: "Top", what: "T-shirt + thin sweater", why: `Coldest hour feels like ${f(s.feelsMin)}` });
+  } else if (s.feelsMax >= r.tshirtOnly) {
+    out.push({ slot: "Top", what: "T-shirt + sweater over it", why: `Starts at ${f(s.feelsMin)}, warms up to ${f(s.feelsMax)}` });
+  } else {
+    out.push({ slot: "Top", what: "Sweater", why: `Coldest hour feels like ${f(s.feelsMin)}` });
+  }
+
+  // Jacket
+  let jacket;
+  if (s.feelsMin >= r.noCoatWithSweater) jacket = { what: "No jacket", why: `${r.noCoatWithSweater}°+ feels-like needs none` };
+  else if (s.feelsMin >= r.lightJacket) jacket = { what: "Summer jacket", why: `Feels like ${f(s.feelsMin)}, between ${r.lightJacket}° and ${r.noCoatWithSweater}°` };
+  else jacket = { what: "Winter jacket", why: `Feels like ${f(s.feelsMin)}, below ${r.lightJacket}°` };
+  if (rain) {
+    jacket.what = jacket.what === "No jacket" ? "Rain jacket" : `${jacket.what} (waterproof)`;
+    jacket.why += s.snow ? "; snow expected" : `; rain chance up to ${Math.round(s.rainProbMax)}%`;
+  }
+  out.push({ slot: "Jacket", ...jacket });
+
+  // Rain / snow gear
+  if (rain) {
+    const kind = s.snow ? "Snow" : "Rain";
+    const amount = `${s.rainSum.toFixed(1)} mm${s.snow ? " (water equivalent)" : ""} expected`;
+    if (s.gustMax > r.umbrellaMaxGust) {
+      out.push({ slot: kind, what: "Hood, not umbrella", why: `${amount}, gusts up to ${Math.round(s.gustMax)} km/h`, alert: true });
+    } else if (s.snow) {
+      out.push({ slot: kind, what: "Hood or hat", why: amount, alert: true });
+    } else {
+      out.push({ slot: kind, what: "Umbrella", why: `${amount}, ${Math.round(s.rainProbMax)}% max chance`, alert: true });
+    }
+  }
+
+  // Extras
+  const extras = [];
+  if (s.feelsMin < r.glovesHatBelow) extras.push("gloves", "hat");
+  if (s.feelsMin < r.scarfBelow) extras.push("scarf");
+  if (s.snow) extras.push("warm shoes");
+  if (extras.length) out.push({ slot: "Extras", what: cap(extras.join(", ")), why: `Feels like ${f(s.feelsMin)} at the coldest` });
+
+  if (s.feelsMax - s.feelsMin >= r.bigSwing) {
+    out.push({ slot: "Tip", what: "Dress in layers", why: `Feels-like swings ${f(s.feelsMin)} to ${f(s.feelsMax)}` });
+  }
+  return out;
+}
+function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+
+if (typeof module !== "undefined") module.exports = { RULES, summarise, recommend, WMO };
+</script>
+
+<!-- ============================================================
+     DATA SOURCE ADAPTER: swap this to change provider.
+     Must return { hours: [{ time: Date-ish string, temp, feels, precipProb,
+                             precip, wind, gust, code }] }
+     ============================================================ -->
+<script>
+/** fetch() that turns a bare "Failed to fetch" into something actionable. */
+async function getJson(url) {
+  let res;
+  try {
+    res = await fetch(url);
+  } catch {
+    throw new Error("Could not reach Open-Meteo. You may be offline, or this page is opened in a sandboxed preview that blocks network requests. Download the file and open it in a normal browser.");
+  }
+  if (!res.ok) throw new Error(`Open-Meteo answered with HTTP ${res.status}`);
+  return res.json();
+}
+
+const weatherSource = {
+  name: "Open-Meteo (KNMI HARMONIE)",
+  async getForecast(lat, lon) {
+    const params = new URLSearchParams({
+      latitude: lat, longitude: lon,
+      models: "knmi_seamless",
+      hourly: "temperature_2m,apparent_temperature,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,weather_code",
+      timezone: "Europe/Amsterdam",
+      forecast_days: 2,
+    });
+    const d = await getJson(`https://api.open-meteo.com/v1/forecast?${params}`);
+    const h = d.hourly;
+    return {
+      hours: h.time.map((t, i) => ({
+        time: t,
+        temp: h.temperature_2m[i],
+        feels: h.apparent_temperature[i],
+        precipProb: h.precipitation_probability?.[i],
+        precip: h.precipitation[i],
+        wind: h.wind_speed_10m[i],
+        gust: h.wind_gusts_10m[i],
+        code: h.weather_code[i],
+      })),
+    };
+  },
+  async searchPlace(name) {
+    const params = new URLSearchParams({ name, count: 5, language: "nl", format: "json" });
+    const d = await getJson(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
+    return (d.results || []).map(p => ({
+      name: [p.name, p.admin1, p.country_code].filter(Boolean).join(", "),
+      lat: p.latitude, lon: p.longitude,
+    }));
+  },
+};
+</script>
+
+<!-- ============================================================
+     UI
+     ============================================================ -->
+<script>
+const $ = id => document.getElementById(id);
+const state = { place: null, forecast: null };
+
+function setStatus(msg, isError = false) {
+  $("status").textContent = msg;
+  $("status").className = isError ? "error" : "";
+}
+
+// Hour selectors and a sensible default window
+(function initHours() {
+  for (let h = 0; h < 24; h++) {
+    const label = `${String(h).padStart(2, "0")}:00`;
+    $("fromHour").add(new Option(label, h));
+    $("toHour").add(new Option(label, h));
+  }
+  const now = new Date().getHours();
+  if (now >= 20) { $("day").value = "1"; $("fromHour").value = 8; $("toHour").value = 20; }
+  else { $("fromHour").value = now; $("toHour").value = Math.max(now, 22); }
+})();
+
+// Remember personal offset (per browser, best effort)
+try { const o = localStorage.getItem("wtw-offset"); if (o !== null) $("offset").value = o; } catch {}
+
+async function loadPlace(place) {
+  state.place = place;
+  setStatus(`Loading forecast for ${place.name}…`);
+  try {
+    state.forecast = await weatherSource.getForecast(place.lat, place.lon);
+    setStatus("");
+    render();
+  } catch (e) {
+    setStatus(e.message, true);
+  }
+}
+
+function hoursInWindow() {
+  const base = new Date();
+  base.setDate(base.getDate() + Number($("day").value));
+  const ymd = base.toLocaleDateString("sv-SE", { timeZone: "Europe/Amsterdam" }); // YYYY-MM-DD
+  const from = Number($("fromHour").value), to = Number($("toHour").value);
+  return state.forecast.hours.filter(h => {
+    if (!h.time.startsWith(ymd)) return false;
+    const hr = Number(h.time.slice(11, 13));
+    return hr >= from && hr <= to;
+  });
+}
+
+function render() {
+  if (!state.forecast) return;
+  const hours = hoursInWindow();
+  const offset = Number($("offset").value);
+  if (!hours.length) {
+    setStatus("No forecast hours in that window. Check From/To.", true);
+    $("resultCard").hidden = $("hourlyCard").hidden = true;
+    return;
+  }
+  setStatus("");
+  const s = summarise(hours, offset);
+  const outfit = recommend(s);
+
+  $("placeName").textContent = state.place.name;
+  $("stats").innerHTML = `
+    <span>Temp <b>${Math.round(s.tempMin)}° to ${Math.round(s.tempMax)}°</b></span>
+    <span>Feels like <b>${Math.round(s.feelsMin - offset)}° to ${Math.round(s.feelsMax - offset)}°</b></span>
+    <span>Rain <b>${s.rainSum.toFixed(1)} mm</b></span>
+    <span>Gusts <b>${Math.round(s.gustMax)} km/h</b></span>`;
+  $("outfit").innerHTML = outfit.map(o => `
+    <div class="item${o.alert ? " alert" : ""}">
+      <div class="slot">${o.slot}</div>
+      <div class="what">${o.what}</div>
+      <div class="why">${o.why}</div>
+    </div>`).join("");
+
+  $("hourly").innerHTML = `
+    <tr><th>Time</th><th>Temp</th><th>Feels</th><th>Rain %</th><th>mm</th><th>Gust</th><th>Sky</th></tr>` +
+    hours.map(h => `<tr>
+      <td>${h.time.slice(11, 16)}</td><td>${Math.round(h.temp)}°</td><td>${Math.round(h.feels)}°</td>
+      <td>${h.precipProb ?? "–"}</td><td>${h.precip.toFixed(1)}</td><td>${Math.round(h.gust)}</td>
+      <td>${WMO[h.code] ?? h.code}</td></tr>`).join("");
+
+  $("resultCard").hidden = $("hourlyCard").hidden = false;
+}
+
+// Events
+$("btnGeo").onclick = () => {
+  if (!navigator.geolocation) return setStatus("Geolocation not available, use search.", true);
+  setStatus("Getting your location…");
+  navigator.geolocation.getCurrentPosition(
+    p => loadPlace({ name: "Your location", lat: p.coords.latitude, lon: p.coords.longitude }),
+    () => setStatus("Location blocked or unavailable, use search instead.", true),
+    { timeout: 10000 }
+  );
+};
+async function doSearch() {
+  const q = $("citySearch").value.trim();
+  if (!q) return;
+  setStatus("Searching…");
+  try {
+    const places = await weatherSource.searchPlace(q);
+    $("results").innerHTML = "";
+    if (!places.length) return setStatus("Nothing found.", true);
+    setStatus("");
+    if (places.length === 1) return loadPlace(places[0]);
+    places.forEach(p => {
+      const b = document.createElement("button");
+      b.textContent = p.name;
+      b.onclick = () => { $("results").innerHTML = ""; loadPlace(p); };
+      $("results").appendChild(b);
+    });
+  } catch (e) { setStatus(e.message, true); }
+}
+$("btnSearch").onclick = doSearch;
+$("citySearch").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+["day", "fromHour", "toHour"].forEach(id => $(id).onchange = render);
+$("offset").onchange = () => {
+  try { localStorage.setItem("wtw-offset", $("offset").value); } catch {}
+  render();
+};
+</script>
+</body>
+</html>
