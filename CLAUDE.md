@@ -53,6 +53,9 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
 ## Design (2026-10-29 redesign)
 - Signature: live sky. `skyFor(feels, wet)` interpolates the `SKY` colour stops into `--sky1/--sky2`
   (registered with `@property` so they animate); greyer when wet, dimmed in dark mode.
+- Day/night: adapter maps Open-Meteo `is_day` to `isDay`. Night sky = navy mix in `skyFor(..., night)`,
+  seeded star field (`.stars`, only on clear nights), dimmed clouds, night hours shaded in the strip.
+  Reference hour: current hour if today and inside the window, else the window's midpoint.
 - Canvas `#fx` draws rain streaks (density from mm, slant from gusts) or snow. Off with prefers-reduced-motion.
 - Hero = jacket verdict (big display type); other outfit items are glass cards below. Rain gear card in
   KNMI "code geel" yellow, same yellow as the focus ring.

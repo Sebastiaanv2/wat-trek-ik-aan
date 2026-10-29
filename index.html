@@ -48,6 +48,12 @@
   .cloud.c3 { width: 70vw; height: 30vw; bottom: -10vw; left: 10vw; opacity: .25; animation-duration: 95s; }
   @keyframes drift { to { transform: translateX(12vw); } }
   #fx { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .cloud { transition: opacity 1.6s ease; }
+  body.night .atmos .cloud { opacity: .1; }
+  .stars { position: absolute; inset: 0; opacity: 0; transition: opacity 2s ease; }
+  body.starry .stars { opacity: 1; }
+  .stars i { position: absolute; border-radius: 50%; background: #fff; animation: twinkle 4s ease-in-out infinite alternate; }
+  @keyframes twinkle { to { opacity: .15; } }
 
   main { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; padding: 20px 16px 48px; }
 
@@ -132,6 +138,9 @@
   .strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   .hour { flex: 1 0 44px; display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 .78rem/1 var(--mono); }
   .hour .t { color: var(--muted); }
+  .hour { padding: 6px 0; border-radius: 10px; max-width: 64px; }
+  .hour.night { background: rgba(6, 13, 31, .06); }
+  @media (prefers-color-scheme: dark) { .hour.night { background: rgba(0, 0, 0, .28); } }
   .bar-wrap { height: 110px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
   .bar {
     width: 70%; max-width: 26px; border-radius: 8px 8px 4px 4px; background: linear-gradient(180deg, var(--c1), color-mix(in srgb, var(--c2) 70%, transparent));
@@ -165,6 +174,7 @@
 <body>
 <div class="atmos" aria-hidden="true">
   <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <div class="stars"></div>
   <canvas id="fx"></canvas>
 </div>
 <main>
@@ -439,7 +449,7 @@ const weatherSource = {
     const params = new URLSearchParams({
       latitude: lat, longitude: lon,
       models: "knmi_seamless",
-      hourly: "temperature_2m,apparent_temperature,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,weather_code",
+      hourly: "temperature_2m,apparent_temperature,precipitation_probability,precipitation,wind_speed_10m,wind_gusts_10m,weather_code,is_day",
       timezone: "Europe/Amsterdam",
       forecast_days: 2,
     });
@@ -455,6 +465,7 @@ const weatherSource = {
         wind: h.wind_speed_10m[i],
         gust: h.wind_gusts_10m[i],
         code: h.weather_code[i],
+        isDay: h.is_day?.[i] == null ? null : h.is_day[i] === 1,
       })),
     };
   },
@@ -566,7 +577,7 @@ const SKY = [
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 const toHex = c => "#" + c.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
 const mix = (a, b, k) => toHex(hex(a).map((v, i) => v + (hex(b)[i] - v) * k));
-function skyFor(feels, wet = false, raw = false) {
+function skyFor(feels, wet = false, raw = false, night = false) {
   let i = SKY.findIndex(s => feels < s[0]);
   let top, bottom;
   if (i === 0) [, top, bottom] = SKY[0];
@@ -576,15 +587,34 @@ function skyFor(feels, wet = false, raw = false) {
     top = mix(a[1], b[1], k); bottom = mix(a[2], b[2], k);
   }
   if (wet) { top = mix(top, "#4a5560", .4); bottom = mix(bottom, "#8d979f", .4); }
-  if (darkMode.matches && !raw) { top = mix(top, "#070b10", .5); bottom = mix(bottom, "#0d141b", .6); }
+  // Night: pull towards deep navy, keeping a hint of the temperature colour.
+  // Already dark, so it replaces the dark-mode dimming instead of stacking on it.
+  if (night) { top = mix(top, "#060d1f", .78); bottom = mix(bottom, "#1b2747", .7); }
+  else if (darkMode.matches && !raw) { top = mix(top, "#070b10", .5); bottom = mix(bottom, "#0d141b", .6); }
   return [top, bottom];
 }
-function setSky(feels, wet) {
-  const [a, b] = skyFor(feels, wet);
+function setSky(feels, wet, night = false) {
+  const [a, b] = skyFor(feels, wet, false, night);
   document.body.style.setProperty("--sky1", a);
   document.body.style.setProperty("--sky2", b);
   document.documentElement.style.background = a;
+  // Stars only on a clear night
+  document.body.classList.toggle("night", night);
+  document.body.classList.toggle("starry", night && !wet);
 }
+
+/* ---------- Stars: generated once, faded in on clear nights ---------- */
+(function makeStars() {
+  const el = document.querySelector(".stars");
+  // Seeded so the sky looks the same on every load
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  el.innerHTML = Array.from({ length: 90 }, () => {
+    const size = rnd() < .85 ? 1 : 2;
+    return `<i style="left:${rnd() * 100}%;top:${rnd() * 70}%;width:${size}px;height:${size}px;` +
+      `opacity:${.35 + rnd() * .6};animation-delay:${-rnd() * 6}s;animation-duration:${3 + rnd() * 5}s"></i>`;
+  }).join("");
+})();
 
 /* ---------- Weather effects: rain streaks or snow on a canvas ---------- */
 const fx = { canvas: $("fx"), ctx: $("fx").getContext("2d"), parts: [], mode: null, wind: 0, raf: 0 };
@@ -717,8 +747,13 @@ function render() {
   const pad = h => `${String(h).padStart(2, "0")}:00`;
   const wet = s.rainProbMax >= RULES.rainProbPct || s.rainSum >= RULES.rainSumMm;
 
-  // Sky + weather effects
-  setSky(s.feelsAvg - offset, wet);
+  // Sky + weather effects. Day/night follows the current hour when it's in the window
+  // (today), otherwise the middle of the window.
+  const from = Number($("fromHour").value), to = Number($("toHour").value);
+  const nowHr = Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Amsterdam", hour: "2-digit", hourCycle: "h23" }));
+  const refHr = $("day").value === "0" && nowHr >= from && nowHr <= to ? nowHr : Math.round((from + to) / 2);
+  const ref = hours.find(h => Number(h.time.slice(11, 13)) === refHr);
+  setSky(s.feelsAvg - offset, wet, ref?.isDay === false);
   setWeatherFx(s.snow && wet ? "snow" : wet ? "rain" : null, s.rainSum, s.gustMax);
 
   // Hero: the jacket is the decision people make at the door
@@ -751,7 +786,7 @@ function render() {
     // Bars use the light end of that temperature's sky, undimmed so they read in dark mode
     const [c2, c1] = skyFor(h.feels ?? lo, false, true);
     const label = `${h.time.slice(11, 16)}, ${deg(h.feels)}, ${wmo[h.code] ?? ""}, ${num(h.precip, 1)} mm`;
-    return `<div class="hour" title="${label}" aria-label="${label}">
+    return `<div class="hour${h.isDay === false ? " night" : ""}" title="${label}" aria-label="${label}">
       <span>${deg(h.feels)}</span>
       <div class="bar-wrap"><div class="bar" style="height:${20 + k * 80}%;--c1:${c1};--c2:${c2};--i:${i}"></div></div>
       <div class="drop${h.precip > 0 ? " wet" : ""}"></div>
