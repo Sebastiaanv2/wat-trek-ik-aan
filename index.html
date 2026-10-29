@@ -647,8 +647,10 @@ document.addEventListener("visibilitychange", () => {
   }
   // Current hour in Amsterdam, since forecast times are Amsterdam time
   const now = Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Amsterdam", hour: "2-digit", hourCycle: "h23" }));
-  if (now >= 20) { $("day").value = "1"; $("fromHour").value = 8; $("toHour").value = 20; }
-  else { $("fromHour").value = now; $("toHour").value = Math.max(now, 22); }
+  // Default to the whole rest of the day; late in the evening, all of tomorrow
+  if (now >= 20) { $("day").value = "1"; $("fromHour").value = 0; }
+  else { $("fromHour").value = now; }
+  $("toHour").value = 23;
 })();
 
 // Remember personal offset (per browser, best effort)
