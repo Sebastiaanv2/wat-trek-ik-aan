@@ -36,14 +36,12 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
   matches, outfit cards and hourly table render. All 7 hourly fields filled, 0 nulls in 48 h.
 - Geolocation needs HTTPS or localhost.
 
-## Known issues (code review 2026-10-29, not fixed yet)
+## Known issues (code review 2026-10-29)
 1. RESOLVED: `precipitation_probability` is filled for `knmi_seamless` (values 0-6% in test run, 0 nulls).
-2. Hourly table crashes if the API returns null precip: `h.precip.toFixed(1)` in `render()`.
-   Null temp/gust silently become 0 in `Math.round`/`Math.max`. Not seen in live test (0 nulls), still unguarded.
-3. Default "from" hour uses browser local time (`new Date().getHours()`), filter uses Amsterdam time.
-   Only wrong outside the NL timezone.
-4. From > To gives an empty window. Error shown, but the UI doesn't prevent it.
-5. Page is English (`lang="en"`, "What To Wear"), repo/README use the Dutch name. Owner to decide.
+2. FIXED: null API values. `summarise()` skips nulls (returns null if no feels data), table shows "–".
+3. FIXED: default "from" hour now uses Amsterdam time.
+4. FIXED: From/To selects drag each other along so From <= To.
+5. OPEN: page is English (`lang="en"`, "What To Wear"), repo/README use the Dutch name. Owner to decide.
 
 ## Next steps
 1. DONE 2026-10-29: repo https://github.com/Sebastiaanv2/wat-trek-ik-aan (public),

@@ -142,18 +142,22 @@ const WMO = {
 
 /** Summarise the hours inside the chosen window. */
 function summarise(hours, offset = 0) {
-  if (!hours.length) return null;
-  const feels = hours.map(h => h.feels + offset);
+  // Skip null values (missing hours) instead of letting them count as 0
+  const vals = k => hours.map(h => h[k]).filter(v => v != null);
   const sum = a => a.reduce((x, y) => x + y, 0);
+  const max = a => a.length ? Math.max(...a) : 0;
+  const feels = vals("feels").map(v => v + offset);
+  if (!feels.length) return null;
+  const temps = vals("temp");
   return {
     feelsMin: Math.min(...feels),
     feelsMax: Math.max(...feels),
     feelsAvg: sum(feels) / feels.length,
-    tempMin: Math.min(...hours.map(h => h.temp)),
-    tempMax: Math.max(...hours.map(h => h.temp)),
-    rainProbMax: Math.max(...hours.map(h => h.precipProb ?? 0)),
-    rainSum: sum(hours.map(h => h.precip ?? 0)),
-    gustMax: Math.max(...hours.map(h => h.gust ?? 0)),
+    tempMin: temps.length ? Math.min(...temps) : null,
+    tempMax: temps.length ? Math.max(...temps) : null,
+    rainProbMax: max(vals("precipProb")),
+    rainSum: sum(vals("precip")),
+    gustMax: max(vals("gust")),
     snow: hours.some(h => [71, 73, 75, 77, 85, 86].includes(h.code)),
   };
 }
@@ -298,7 +302,8 @@ function setStatus(msg, isError = false) {
     $("fromHour").add(new Option(label, h));
     $("toHour").add(new Option(label, h));
   }
-  const now = new Date().getHours();
+  // Current hour in Amsterdam, since forecast times are Amsterdam time
+  const now = Number(new Date().toLocaleString("en-GB", { timeZone: "Europe/Amsterdam", hour: "2-digit", hourCycle: "h23" }));
   if (now >= 20) { $("day").value = "1"; $("fromHour").value = 8; $("toHour").value = 20; }
   else { $("fromHour").value = now; $("toHour").value = Math.max(now, 22); }
 })();
@@ -339,13 +344,20 @@ function render() {
     $("resultCard").hidden = $("hourlyCard").hidden = true;
     return;
   }
-  setStatus("");
   const s = summarise(hours, offset);
+  if (!s) {
+    setStatus("Forecast has no temperature data for that window.", true);
+    $("resultCard").hidden = $("hourlyCard").hidden = true;
+    return;
+  }
+  setStatus("");
   const outfit = recommend(s);
+  const deg = v => v == null ? "–" : `${Math.round(v)}°`;
+  const num = (v, d = 0) => v == null ? "–" : v.toFixed(d);
 
   $("placeName").textContent = state.place.name;
   $("stats").innerHTML = `
-    <span>Temp <b>${Math.round(s.tempMin)}° to ${Math.round(s.tempMax)}°</b></span>
+    <span>Temp <b>${deg(s.tempMin)} to ${deg(s.tempMax)}</b></span>
     <span>Feels like <b>${Math.round(s.feelsMin - offset)}° to ${Math.round(s.feelsMax - offset)}°</b></span>
     <span>Rain <b>${s.rainSum.toFixed(1)} mm</b></span>
     <span>Gusts <b>${Math.round(s.gustMax)} km/h</b></span>`;
@@ -359,8 +371,8 @@ function render() {
   $("hourly").innerHTML = `
     <tr><th>Time</th><th>Temp</th><th>Feels</th><th>Rain %</th><th>mm</th><th>Gust</th><th>Sky</th></tr>` +
     hours.map(h => `<tr>
-      <td>${h.time.slice(11, 16)}</td><td>${Math.round(h.temp)}°</td><td>${Math.round(h.feels)}°</td>
-      <td>${h.precipProb ?? "–"}</td><td>${h.precip.toFixed(1)}</td><td>${Math.round(h.gust)}</td>
+      <td>${h.time.slice(11, 16)}</td><td>${deg(h.temp)}</td><td>${deg(h.feels)}</td>
+      <td>${h.precipProb ?? "–"}</td><td>${num(h.precip, 1)}</td><td>${num(h.gust)}</td>
       <td>${WMO[h.code] ?? h.code}</td></tr>`).join("");
 
   $("resultCard").hidden = $("hourlyCard").hidden = false;
@@ -396,7 +408,16 @@ async function doSearch() {
 }
 $("btnSearch").onclick = doSearch;
 $("citySearch").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
-["day", "fromHour", "toHour"].forEach(id => $(id).onchange = render);
+$("day").onchange = render;
+// Keep From <= To: moving one past the other drags the other along
+$("fromHour").onchange = () => {
+  if (Number($("fromHour").value) > Number($("toHour").value)) $("toHour").value = $("fromHour").value;
+  render();
+};
+$("toHour").onchange = () => {
+  if (Number($("toHour").value) < Number($("fromHour").value)) $("fromHour").value = $("toHour").value;
+  render();
+};
 $("offset").onchange = () => {
   try { localStorage.setItem("wtw-offset", $("offset").value); } catch {}
   render();
