@@ -4,87 +4,195 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>What To Wear</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Geist:wght@400..600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* Sky colours are set from the forecast by JS; registered so they can animate */
+  @property --sky1 { syntax: "<color>"; inherits: true; initial-value: #3b5568; }
+  @property --sky2 { syntax: "<color>"; inherits: true; initial-value: #c3ccd3; }
+
   :root {
-    --bg: #f4f2ee; --card: #ffffff; --text: #1d1d1b; --muted: #6b6a66;
-    --line: #e2dfd8; --accent: #2f6f5e; --warn: #b5562a; --chip: #eef3f1;
+    --ink: #13202b; --muted: #4b5b68; --line: rgba(19, 32, 43, .12);
+    --glass: rgba(255, 255, 255, .64); --glass-strong: rgba(255, 255, 255, .82);
+    --on-sky: #ffffff; --code-geel: #f2c230;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --body: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "Cascadia Mono", monospace;
+    --radius: 18px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #161716; --card: #202221; --text: #ecebe7; --muted: #9b9a95;
-      --line: #333532; --accent: #6fbfa8; --warn: #e3895c; --chip: #263330;
+      --ink: #eef2f5; --muted: #a3b0bb; --line: rgba(255, 255, 255, .12);
+      --glass: rgba(12, 18, 26, .55); --glass-strong: rgba(12, 18, 26, .78);
     }
   }
   * { box-sizing: border-box; }
+  html { background: #3b5568; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    margin: 0; min-height: 100vh; color: var(--ink);
+    font: 16px/1.5 var(--body);
+    background: linear-gradient(180deg, var(--sky1) 0%, var(--sky1) 18%, var(--sky2) 100%) fixed;
+    transition: --sky1 1.6s ease, --sky2 1.6s ease;
   }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
-  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-  h1 { font-size: 1.6rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 20px; }
-  .lang { display: flex; gap: 4px; flex-shrink: 0; }
-  .lang button { padding: 4px 10px; font-size: .85rem; background: var(--chip); color: var(--text); }
-  .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
-  .card {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: 12px; padding: 16px; margin-bottom: 16px;
+
+  /* Atmosphere: drifting clouds + rain/snow canvas, behind everything */
+  .atmos { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+  .cloud {
+    position: absolute; border-radius: 50%; filter: blur(60px); opacity: .35;
+    background: radial-gradient(closest-side, rgba(255,255,255,.9), rgba(255,255,255,0));
+    animation: drift 80s ease-in-out infinite alternate;
   }
+  .cloud.c1 { width: 60vw; height: 28vw; top: -6vw; left: -10vw; }
+  .cloud.c2 { width: 45vw; height: 22vw; top: 22vh; right: -12vw; animation-duration: 110s; animation-delay: -30s; }
+  .cloud.c3 { width: 70vw; height: 30vw; bottom: -10vw; left: 10vw; opacity: .25; animation-duration: 95s; }
+  @keyframes drift { to { transform: translateX(12vw); } }
+  #fx { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  main { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; padding: 20px 16px 48px; }
+
+  header { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--on-sky); }
+  .brand { font: 700 1.05rem/1 var(--display); letter-spacing: -.01em; margin: 0; }
+  .lang { display: flex; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.16); backdrop-filter: blur(8px); }
+  .lang button {
+    font: 500 .8rem/1 var(--mono); letter-spacing: .04em; padding: 7px 12px; border-radius: 999px;
+    background: transparent; color: var(--on-sky); border: 0; cursor: pointer; transition: background .2s, color .2s;
+  }
+  .lang button[aria-pressed="true"] { background: #fff; color: #13202b; }
+
+  /* Hero: the jacket verdict, set on the sky */
+  .hero { color: var(--on-sky); padding: 9vh 0 6vh; text-shadow: 0 1px 24px rgba(0, 0, 0, .18); }
+  .eyebrow { font: 500 .82rem/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; opacity: .85; margin: 0 0 14px; }
+  .verdict {
+    font: 800 clamp(3rem, 12vw, 8rem)/.9 var(--display); font-variation-settings: "opsz" 96;
+    letter-spacing: -.045em; margin: 0; text-wrap: balance;
+  }
+  .verdict .qual { display: block; font-size: .32em; font-weight: 600; letter-spacing: -.01em; margin-top: .35em; opacity: .9; }
+  .verdict.small { font-size: clamp(2.4rem, 8vw, 5.2rem); }
+  .why-big { font-size: 1.1rem; max-width: 34em; margin: 18px 0 0; opacity: .92; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+  .stats span {
+    font: 500 .85rem/1 var(--mono); padding: 9px 12px; border-radius: 999px;
+    background: rgba(255,255,255,.16); backdrop-filter: blur(8px); text-shadow: none;
+  }
+  .stats b { font-weight: 500; }
+  .reveal { animation: reveal .9s cubic-bezier(.2, .7, .1, 1) both; }
+  @keyframes reveal { from { opacity: 0; transform: translateY(.25em); clip-path: inset(0 0 100% 0); } to { clip-path: inset(0 0 -20% 0); } }
+
+  /* Glass panels */
+  .panel {
+    background: var(--glass); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
+    border: 1px solid rgba(255,255,255,.35); border-radius: var(--radius); padding: 16px; margin-bottom: 14px;
+    box-shadow: 0 10px 40px -18px rgba(10, 20, 30, .35);
+  }
+  @media (prefers-color-scheme: dark) { .panel { border-color: rgba(255,255,255,.08); } }
   .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  label { font-size: .9rem; color: var(--muted); }
-  input, select, button {
-    font: inherit; padding: 8px 10px; border-radius: 8px;
-    border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  .row + .row { margin-top: 12px; }
+  label { font-size: .85rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  input, select, button { font: inherit; color: var(--ink); }
+  input, select {
+    padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--glass-strong);
   }
-  button { background: var(--accent); color: #fff; border: 0; cursor: pointer; }
-  button.secondary { background: var(--chip); color: var(--text); }
-  #citySearch { flex: 1 1 180px; }
-  #results button { background: var(--chip); color: var(--text); }
-  .outfit { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
-  .item { background: var(--chip); border-radius: 10px; padding: 12px; }
-  .item .slot { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-  .item .what { font-size: 1.1rem; font-weight: 600; margin: 2px 0 4px; }
-  .item .why { font-size: .85rem; color: var(--muted); }
-  .item.alert .what { color: var(--warn); }
-  .stats { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; color: var(--muted); font-size: .9rem; }
-  .stats b { color: var(--text); }
-  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-  th, td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  select { padding-right: 8px; }
+  #citySearch { flex: 1 1 200px; }
+  .btn {
+    padding: 10px 16px; border-radius: 12px; border: 0; cursor: pointer; font-weight: 500;
+    background: var(--ink); color: var(--glass-strong); transition: transform .15s, opacity .15s;
+  }
+  @media (prefers-color-scheme: dark) { .btn { color: #13202b; } }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  #results:not(:empty) { margin-top: 10px; }
+  #results button {
+    padding: 8px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--glass-strong);
+    cursor: pointer; font-size: .9rem;
+  }
+  #results button:hover { border-color: var(--ink); }
+  #status { color: var(--muted); font-size: .9rem; margin: 10px 0 0; min-height: 1.2em; }
+  #status:empty { display: none; }
+  #status.error { color: var(--ink); font-weight: 500; }
+  #status.error::before { content: ""; display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--code-geel); margin-right: .5em; }
+
+  :focus-visible { outline: 3px solid var(--code-geel); outline-offset: 2px; }
+
+  /* Outfit cards */
+  .outfit { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .outfit .panel { margin: 0; animation: rise .6s cubic-bezier(.2, .7, .1, 1) both; animation-delay: calc(var(--i) * 80ms + 250ms); }
+  @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.98); } }
+  .slot { font: 500 .72rem/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .what { font: 700 1.35rem/1.15 var(--display); letter-spacing: -.02em; margin: 8px 0 6px; }
+  .why { font-size: .88rem; color: var(--muted); margin: 0; }
+  .panel.alert { background: var(--code-geel); border-color: transparent; }
+  .panel.alert .slot, .panel.alert .why, .panel.alert .what { color: #13202b; }
+
+  /* Hourly strip */
+  .hours-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .hours-head h2 { font: 700 1.05rem/1 var(--display); margin: 0; }
+  .strip { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  .hour { flex: 1 0 44px; display: flex; flex-direction: column; align-items: center; gap: 6px; font: 500 .78rem/1 var(--mono); }
+  .hour .t { color: var(--muted); }
+  .bar-wrap { height: 110px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  .bar {
+    width: 70%; max-width: 26px; border-radius: 8px 8px 4px 4px; background: linear-gradient(180deg, var(--c1), color-mix(in srgb, var(--c2) 70%, transparent));
+    transform-origin: bottom; animation: grow .7s cubic-bezier(.2, .7, .1, 1) both; animation-delay: calc(var(--i) * 35ms + 400ms);
+  }
+  @keyframes grow { from { transform: scaleY(0); } }
+  .drop { height: 4px; width: 70%; max-width: 26px; border-radius: 2px; background: transparent; }
+  .drop.wet { background: #3d8fd6; }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; font-size: .85rem; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font: .82rem/1.3 var(--mono); margin-top: 10px; }
+  th, td { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th { font-weight: 500; color: var(--muted); }
   th:first-child, td:first-child { text-align: left; }
   .tablewrap { overflow-x: auto; }
-  #status { color: var(--muted); font-size: .9rem; min-height: 1.2em; }
-  #status.error { color: var(--warn); }
-  footer { color: var(--muted); font-size: .8rem; }
-  footer a { color: var(--accent); }
+
+  footer { position: relative; z-index: 1; color: var(--on-sky); opacity: .8; font-size: .78rem; max-width: 880px; margin: 0 auto; padding: 0 16px 32px; }
+  footer a { color: inherit; }
+
+  @media (max-width: 520px) {
+    .hero { padding: 5vh 0 4vh; }
+    #btnGeo { flex: 1 0 100%; }
+    #citySearch { flex: 1 1 0; min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 </head>
 <body>
+<div class="atmos" aria-hidden="true">
+  <div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div>
+  <canvas id="fx"></canvas>
+</div>
 <main>
   <header>
-    <div>
-      <h1 data-i18n="title">What To Wear</h1>
-      <p class="sub" data-i18n="sub">Clothing advice from the KNMI HARMONIE forecast. Proof of concept.</p>
-    </div>
+    <p class="brand" data-i18n="title">What To Wear</p>
     <div class="lang" role="group" aria-label="Language">
       <button data-lang="nl" aria-pressed="false">NL</button>
       <button data-lang="en" aria-pressed="false">EN</button>
     </div>
   </header>
 
-  <!-- 1. LOCATION -->
-  <section class="card">
-    <div class="row">
-      <button id="btnGeo" data-i18n="useLocation">Use my location</button>
-      <input id="citySearch" data-i18n-ph="searchPh" placeholder="or search a place, e.g. Utrecht">
-      <button id="btnSearch" class="secondary" data-i18n="search">Search</button>
-    </div>
-    <div id="results" class="row" style="margin-top:8px"></div>
-    <p id="status"></p>
+  <!-- 1. HERO: empty state, then the jacket verdict -->
+  <section class="hero" aria-live="polite">
+    <p class="eyebrow" id="heroEyebrow"></p>
+    <h1 class="verdict" id="heroWhat"></h1>
+    <p class="why-big" id="heroWhy"></p>
+    <div class="stats" id="stats"></div>
   </section>
 
-  <!-- 2. TIME WINDOW + PERSONAL OFFSET -->
-  <section class="card">
+  <!-- 2. LOCATION + TIME WINDOW + PERSONAL OFFSET -->
+  <section class="panel">
+    <div class="row">
+      <button id="btnGeo" class="btn" data-i18n="useLocation">Use my location</button>
+      <input id="citySearch" data-i18n-ph="searchPh" placeholder="or search a place, e.g. Utrecht">
+      <button id="btnSearch" class="btn ghost" data-i18n="search">Search</button>
+    </div>
+    <div id="results" class="row"></div>
+    <p id="status"></p>
     <div class="row">
       <label><span data-i18n="day">Day</span> <select id="day">
         <option value="0" data-i18n="today">Today</option>
@@ -104,23 +212,23 @@
     </div>
   </section>
 
-  <!-- 3. RESULT -->
-  <section class="card" id="resultCard" hidden>
-    <h2 id="placeName" style="margin:0 0 8px;font-size:1.2rem"></h2>
-    <div class="stats" id="stats"></div>
-    <div class="outfit" id="outfit"></div>
-  </section>
+  <!-- 3. OUTFIT CARDS (legs, top, rain, extras, tip; the jacket is the hero) -->
+  <div class="outfit" id="outfit"></div>
 
   <!-- 4. HOURLY DETAIL -->
-  <section class="card" id="hourlyCard" hidden>
-    <div class="tablewrap"><table id="hourly"></table></div>
+  <section class="panel" id="hourlyCard" hidden>
+    <div class="hours-head"><h2 data-i18n="hourlyTitle">Hour by hour</h2></div>
+    <div class="strip" id="strip"></div>
+    <details>
+      <summary data-i18n="allNumbers">All numbers</summary>
+      <div class="tablewrap"><table id="hourly"></table></div>
+    </details>
   </section>
-
-  <footer data-i18n-html="footer">
-    Weather data: KNMI HARMONIE-AROME via <a href="https://open-meteo.com/en/docs/knmi-api">Open-Meteo</a> (CC BY 4.0).
-    Clothing advice is derived by this app, not an official KNMI product.
-  </footer>
 </main>
+<footer data-i18n-html="footer">
+  Weather data: KNMI HARMONIE-AROME via <a href="https://open-meteo.com/en/docs/knmi-api">Open-Meteo</a> (CC BY 4.0).
+  Clothing advice is derived by this app, not an official KNMI product.
+</footer>
 
 <!-- ============================================================
      ENGINE: pure functions, no DOM. Testable in Node.
@@ -165,6 +273,7 @@ const STRINGS = {
     below: (m, x) => `Feels like ${m}, below ${x}`,
     snowExpected: "snow expected",
     rainChance: p => `rain chance up to ${p}%`,
+    dec: ".",
     amount: (mm, snow) => `${mm} mm${snow ? " (water equivalent)" : ""} expected`,
     hood: "Hood, not umbrella", gusts: (a, g) => `${a}, gusts up to ${g} km/h`,
     hoodHat: "Hood or hat", umbrella: "Umbrella", maxChance: (a, p) => `${a}, ${p}% max chance`,
@@ -197,6 +306,7 @@ const STRINGS = {
     below: (m, x) => `Voelt als ${m}, onder ${x}`,
     snowExpected: "sneeuw verwacht",
     rainChance: p => `regenkans tot ${p}%`,
+    dec: ",",
     amount: (mm, snow) => `${mm} mm${snow ? " (als water)" : ""} verwacht`,
     hood: "Capuchon, geen paraplu", gusts: (a, g) => `${a}, windstoten tot ${g} km/u`,
     hoodHat: "Capuchon of muts", umbrella: "Paraplu", maxChance: (a, p) => `${a}, maximaal ${p}% kans`,
@@ -278,7 +388,7 @@ function recommend(s, r = RULES, lang = "en") {
   // Rain / snow gear
   if (rain) {
     const slot = s.snow ? T.slot.snow : T.slot.rain;
-    const amount = T.amount(s.rainSum.toFixed(1), s.snow);
+    const amount = T.amount(s.rainSum.toFixed(1).replace(".", T.dec), s.snow);
     if (s.gustMax > r.umbrellaMaxGust) {
       out.push({ slot, what: T.hood, why: T.gusts(amount, Math.round(s.gustMax)), alert: true });
     } else if (s.snow) {
@@ -370,7 +480,9 @@ const state = { place: null, forecast: null };
 const UI_TEXT = {
   en: {
     pageTitle: "What To Wear", title: "What To Wear",
-    sub: "Clothing advice from the KNMI HARMONIE forecast. Proof of concept.",
+    sub: "Clothing advice from the KNMI HARMONIE forecast",
+    emptyTitle: "Where are you today?",
+    emptySub: "Search a place or use your location, and get advice from trousers to jacket.",
     useLocation: "Use my location", searchPh: "or search a place, e.g. Utrecht", search: "Search",
     day: "Day", today: "Today", tomorrow: "Tomorrow", from: "From", to: "To",
     iRun: "I run", offsetTitle: "Positive if you run warm, negative if you get cold easily",
@@ -379,7 +491,7 @@ const UI_TEXT = {
       Clothing advice is derived by this app, not an official KNMI product.`,
     yourLocation: "Your location",
     loading: n => `Loading forecast for ${n}…`,
-    searching: "Searching…", nothingFound: "Nothing found.",
+    searching: "Searching…", nothingFound: "Nothing found. Check the spelling or try a nearby town.",
     gettingLocation: "Getting your location…",
     geoUnavailable: "Geolocation not available, use search.",
     geoBlocked: "Location blocked or unavailable, use search instead.",
@@ -387,12 +499,15 @@ const UI_TEXT = {
     noTemp: "Forecast has no temperature data for that window.",
     errOffline: "Could not reach Open-Meteo. You may be offline, or this page is opened in a sandboxed preview that blocks network requests. Download the file and open it in a normal browser.",
     errHttp: s => `Open-Meteo answered with HTTP ${s}`,
-    statTemp: "Temp", statFeels: "Feels like", statRain: "Rain", statGusts: "Gusts",
+    statTemp: "Temp", statFeels: "Feels like", statRain: "Rain", statGusts: "Gusts", kmh: "km/h",
+    hourlyTitle: "Hour by hour", allNumbers: "All numbers",
     thTime: "Time", thTemp: "Temp", thFeels: "Feels", thRain: "Rain %", thMm: "mm", thGust: "Gust", thSky: "Sky",
   },
   nl: {
     pageTitle: "Wat trek ik aan?", title: "Wat trek ik aan?",
-    sub: "Kledingadvies op basis van de KNMI HARMONIE-verwachting. Proof of concept.",
+    sub: "Kledingadvies op basis van de KNMI HARMONIE-verwachting",
+    emptyTitle: "Waar ben je vandaag?",
+    emptySub: "Zoek een plaats of gebruik je locatie, en krijg advies van broek tot jas.",
     useLocation: "Gebruik mijn locatie", searchPh: "of zoek een plaats, bijv. Utrecht", search: "Zoeken",
     day: "Dag", today: "Vandaag", tomorrow: "Morgen", from: "Van", to: "Tot",
     iRun: "Ik heb het", offsetTitle: "Positief als je het snel warm hebt, negatief als je het snel koud hebt",
@@ -401,7 +516,7 @@ const UI_TEXT = {
       Het kledingadvies komt van deze app en is geen officieel KNMI-product.`,
     yourLocation: "Je locatie",
     loading: n => `Verwachting laden voor ${n}…`,
-    searching: "Zoeken…", nothingFound: "Niets gevonden.",
+    searching: "Zoeken…", nothingFound: "Niets gevonden. Controleer de spelling of probeer een plaats in de buurt.",
     gettingLocation: "Locatie ophalen…",
     geoUnavailable: "Locatiebepaling niet beschikbaar, gebruik zoeken.",
     geoBlocked: "Locatie geblokkeerd of niet beschikbaar, gebruik zoeken.",
@@ -409,7 +524,8 @@ const UI_TEXT = {
     noTemp: "Geen temperatuurgegevens voor dat tijdvak.",
     errOffline: "Open-Meteo is niet bereikbaar. Mogelijk ben je offline, of deze pagina draait in een afgeschermde preview die netwerkverkeer blokkeert. Download het bestand en open het in een gewone browser.",
     errHttp: s => `Open-Meteo antwoordde met HTTP ${s}`,
-    statTemp: "Temp", statFeels: "Voelt als", statRain: "Regen", statGusts: "Windstoten",
+    statTemp: "Temp", statFeels: "Voelt als", statRain: "Regen", statGusts: "Windstoten", kmh: "km/u",
+    hourlyTitle: "Per uur", allNumbers: "Alle cijfers",
     thTime: "Tijd", thTemp: "Temp", thFeels: "Voelt", thRain: "Regen %", thMm: "mm", thGust: "Windst.", thSky: "Lucht",
   },
 };
@@ -419,6 +535,9 @@ let lang = "en";
 try { lang = localStorage.getItem("wtw-lang") || ""; } catch {}
 if (!UI_TEXT[lang]) lang = (navigator.language || "").toLowerCase().startsWith("nl") ? "nl" : "en";
 const t = key => UI_TEXT[lang][key];
+
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const darkMode = matchMedia("(prefers-color-scheme: dark)");
 
 function applyLang() {
   document.documentElement.lang = lang;
@@ -434,6 +553,90 @@ function setStatus(msg, isError = false) {
   $("status").textContent = msg;
   $("status").className = isError ? "error" : "";
 }
+
+/* ---------- Sky: colour follows feels-like temperature ---------- */
+// [feels °C, top colour, bottom colour]. Tops stay dark enough for white text.
+const SKY = [
+  [-5, "#1c3150", "#9fbbd9"],
+  [5,  "#2f4b63", "#b4c3cf"],
+  [12, "#3f6878", "#cfd9d2"],
+  [19, "#9a6440", "#f0d3a6"],
+  [27, "#9c3f24", "#f6c27d"],
+];
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const toHex = c => "#" + c.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+const mix = (a, b, k) => toHex(hex(a).map((v, i) => v + (hex(b)[i] - v) * k));
+function skyFor(feels, wet = false, raw = false) {
+  let i = SKY.findIndex(s => feels < s[0]);
+  let top, bottom;
+  if (i === 0) [, top, bottom] = SKY[0];
+  else if (i === -1) [, top, bottom] = SKY[SKY.length - 1];
+  else {
+    const [a, b] = [SKY[i - 1], SKY[i]], k = (feels - a[0]) / (b[0] - a[0]);
+    top = mix(a[1], b[1], k); bottom = mix(a[2], b[2], k);
+  }
+  if (wet) { top = mix(top, "#4a5560", .4); bottom = mix(bottom, "#8d979f", .4); }
+  if (darkMode.matches && !raw) { top = mix(top, "#070b10", .5); bottom = mix(bottom, "#0d141b", .6); }
+  return [top, bottom];
+}
+function setSky(feels, wet) {
+  const [a, b] = skyFor(feels, wet);
+  document.body.style.setProperty("--sky1", a);
+  document.body.style.setProperty("--sky2", b);
+  document.documentElement.style.background = a;
+}
+
+/* ---------- Weather effects: rain streaks or snow on a canvas ---------- */
+const fx = { canvas: $("fx"), ctx: $("fx").getContext("2d"), parts: [], mode: null, wind: 0, raf: 0 };
+function sizeFx() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  fx.canvas.width = innerWidth * dpr; fx.canvas.height = innerHeight * dpr;
+  fx.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function setWeatherFx(mode, intensity = 0, gust = 0) {
+  cancelAnimationFrame(fx.raf);
+  fx.ctx.clearRect(0, 0, innerWidth, innerHeight);
+  fx.mode = reduceMotion.matches ? null : mode;
+  if (!fx.mode) return;
+  fx.wind = Math.min(gust, 70) / 70;
+  const n = fx.mode === "snow" ? 110 : Math.round(70 + Math.min(intensity, 4) * 60);
+  fx.parts = Array.from({ length: n }, () => ({
+    x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+    v: fx.mode === "snow" ? .4 + Math.random() * .8 : 9 + Math.random() * 7,
+    s: fx.mode === "snow" ? 1 + Math.random() * 2.2 : 10 + Math.random() * 14,
+    p: Math.random() * Math.PI * 2,
+  }));
+  const tick = () => {
+    const c = fx.ctx, W = innerWidth, H = innerHeight;
+    c.clearRect(0, 0, W, H);
+    if (fx.mode === "rain") {
+      c.strokeStyle = "rgba(255,255,255,.32)"; c.lineWidth = 1; c.beginPath();
+      const dx = fx.wind * .5;
+      for (const d of fx.parts) {
+        c.moveTo(d.x, d.y); c.lineTo(d.x - d.s * dx, d.y + d.s);
+        d.y += d.v; d.x -= d.v * dx;
+        if (d.y > H) { d.y = -20; d.x = Math.random() * (W + 200); }
+      }
+      c.stroke();
+    } else {
+      c.fillStyle = "rgba(255,255,255,.8)"; c.beginPath();
+      for (const f of fx.parts) {
+        f.p += .01; f.y += f.v; f.x += Math.sin(f.p) * .5 - fx.wind * .6;
+        if (f.y > H) { f.y = -5; f.x = Math.random() * W; }
+        c.moveTo(f.x, f.y); c.arc(f.x, f.y, f.s, 0, Math.PI * 2);
+      }
+      c.fill();
+    }
+    fx.raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+sizeFx();
+addEventListener("resize", sizeFx);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) cancelAnimationFrame(fx.raf);
+  else if (fx.mode) render();
+});
 
 // Hour selectors and a sensible default window
 (function initHours() {
@@ -478,39 +681,81 @@ function hoursInWindow() {
   });
 }
 
+/** Replay a CSS animation on an element whose content just changed. */
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+function renderEmpty() {
+  $("heroEyebrow").textContent = t("sub");
+  $("heroWhat").textContent = t("emptyTitle");
+  $("heroWhat").classList.add("small");
+  $("heroWhy").textContent = t("emptySub");
+  $("stats").innerHTML = "";
+  $("outfit").innerHTML = "";
+  $("hourlyCard").hidden = true;
+  setSky(9, false);
+  setWeatherFx(null);
+}
+
 function render() {
-  if (!state.forecast) return;
+  if (!state.forecast) return renderEmpty();
   const hours = hoursInWindow();
   const offset = Number($("offset").value);
-  if (!hours.length) {
-    setStatus(t("noHours"), true);
-    $("resultCard").hidden = $("hourlyCard").hidden = true;
-    return;
-  }
-  const s = summarise(hours, offset);
+  const s = hours.length ? summarise(hours, offset) : null;
   if (!s) {
-    setStatus(t("noTemp"), true);
-    $("resultCard").hidden = $("hourlyCard").hidden = true;
+    setStatus(t(hours.length ? "noTemp" : "noHours"), true);
+    $("outfit").innerHTML = "";
+    $("hourlyCard").hidden = true;
     return;
   }
   setStatus("");
-  const outfit = recommend(s, RULES, lang);
+  const [legs, top, jacket, ...rest] = recommend(s, RULES, lang);
   const wmo = STRINGS[lang].wmo;
   const deg = v => v == null ? "–" : `${Math.round(v)}°`;
-  const num = (v, d = 0) => v == null ? "–" : v.toFixed(d);
+  const num = (v, d = 0) => v == null ? "–" : v.toLocaleString(lang, { minimumFractionDigits: d, maximumFractionDigits: d });
+  const pad = h => `${String(h).padStart(2, "0")}:00`;
+  const wet = s.rainProbMax >= RULES.rainProbPct || s.rainSum >= RULES.rainSumMm;
 
-  $("placeName").textContent = placeName(state.place);
+  // Sky + weather effects
+  setSky(s.feelsAvg - offset, wet);
+  setWeatherFx(s.snow && wet ? "snow" : wet ? "rain" : null, s.rainSum, s.gustMax);
+
+  // Hero: the jacket is the decision people make at the door
+  const dayLabel = t($("day").value === "0" ? "today" : "tomorrow");
+  $("heroEyebrow").textContent = `${placeName(state.place)} · ${dayLabel} ${pad($("fromHour").value)}–${pad($("toHour").value)}`;
+  const q = jacket.what.match(/^(.*?)\s*(\(.+\))$/);
+  $("heroWhat").classList.remove("small");
+  $("heroWhat").innerHTML = q ? `${q[1]}<span class="qual">${q[2]}</span>` : jacket.what;
+  replay($("heroWhat"), "reveal");
+  $("heroWhy").textContent = jacket.why;
   $("stats").innerHTML = `
-    <span>${t("statTemp")} <b>${deg(s.tempMin)} – ${deg(s.tempMax)}</b></span>
     <span>${t("statFeels")} <b>${deg(s.feelsMin - offset)} – ${deg(s.feelsMax - offset)}</b></span>
-    <span>${t("statRain")} <b>${s.rainSum.toFixed(1)} mm</b></span>
-    <span>${t("statGusts")} <b>${Math.round(s.gustMax)} km/h</b></span>`;
-  $("outfit").innerHTML = outfit.map(o => `
-    <div class="item${o.alert ? " alert" : ""}">
+    <span>${t("statTemp")} <b>${deg(s.tempMin)} – ${deg(s.tempMax)}</b></span>
+    <span>${t("statRain")} <b>${num(s.rainSum, 1)} mm</b></span>
+    <span>${t("statGusts")} <b>${Math.round(s.gustMax)} ${t("kmh")}</b></span>`;
+
+  // Cards
+  $("outfit").innerHTML = [legs, top, ...rest].map((o, i) => `
+    <article class="panel${o.alert ? " alert" : ""}" style="--i:${i}">
       <div class="slot">${o.slot}</div>
       <div class="what">${o.what}</div>
-      <div class="why">${o.why}</div>
-    </div>`).join("");
+      <p class="why">${o.why}</p>
+    </article>`).join("");
+
+  // Hourly strip: bar height = feels-like, scaled within the window
+  const feels = hours.map(h => h.feels).filter(v => v != null);
+  const lo = Math.min(...feels), hi = Math.max(...feels);
+  $("strip").innerHTML = hours.map((h, i) => {
+    const k = h.feels == null ? 0 : hi === lo ? .6 : (h.feels - lo) / (hi - lo);
+    // Bars use the light end of that temperature's sky, undimmed so they read in dark mode
+    const [c2, c1] = skyFor(h.feels ?? lo, false, true);
+    const label = `${h.time.slice(11, 16)}, ${deg(h.feels)}, ${wmo[h.code] ?? ""}, ${num(h.precip, 1)} mm`;
+    return `<div class="hour" title="${label}" aria-label="${label}">
+      <span>${deg(h.feels)}</span>
+      <div class="bar-wrap"><div class="bar" style="height:${20 + k * 80}%;--c1:${c1};--c2:${c2};--i:${i}"></div></div>
+      <div class="drop${h.precip > 0 ? " wet" : ""}"></div>
+      <span class="t">${h.time.slice(11, 13)}</span>
+    </div>`;
+  }).join("");
 
   $("hourly").innerHTML = `
     <tr><th>${t("thTime")}</th><th>${t("thTemp")}</th><th>${t("thFeels")}</th><th>${t("thRain")}</th>
@@ -520,7 +765,7 @@ function render() {
       <td>${h.precipProb ?? "–"}</td><td>${num(h.precip, 1)}</td><td>${num(h.gust)}</td>
       <td>${wmo[h.code] ?? h.code}</td></tr>`).join("");
 
-  $("resultCard").hidden = $("hourlyCard").hidden = false;
+  $("hourlyCard").hidden = false;
 }
 
 // Events
@@ -573,8 +818,11 @@ $("offset").onchange = () => {
   try { localStorage.setItem("wtw-offset", $("offset").value); } catch {}
   render();
 };
+darkMode.addEventListener("change", render);
+reduceMotion.addEventListener("change", render);
 
 applyLang();
+render();
 </script>
 </body>
 </html>

@@ -48,7 +48,17 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
 - Interface texts: `UI_TEXT.{en,nl}` in the UI script; static elements use `data-i18n`, `data-i18n-html`,
   `data-i18n-ph` (placeholder), `data-i18n-title`.
 - Choice stored in localStorage `wtw-lang`; default follows `navigator.language` (nl* → nl, else en).
-- Adding a language = add a key to both tables. Known gap: decimals use "." in Dutch too ("1.0 mm").
+- Adding a language = add a key to both tables. Decimal separator: `STRINGS.*.dec` (engine), `toLocaleString` (UI).
+
+## Design (2026-10-29 redesign)
+- Signature: live sky. `skyFor(feels, wet)` interpolates the `SKY` colour stops into `--sky1/--sky2`
+  (registered with `@property` so they animate); greyer when wet, dimmed in dark mode.
+- Canvas `#fx` draws rain streaks (density from mm, slant from gusts) or snow. Off with prefers-reduced-motion.
+- Hero = jacket verdict (big display type); other outfit items are glass cards below. Rain gear card in
+  KNMI "code geel" yellow, same yellow as the focus ring.
+- Hourly: bar strip (height = feels-like within the window), full table in a `<details>`.
+- Fonts (Google Fonts): Bricolage Grotesque (display), Geist (body), Geist Mono (data).
+- Local preview: `.claude/launch.json` runs `python -m http.server 8765` (file:// blocks localStorage).
 
 ## Next steps
 1. DONE 2026-10-29: repo https://github.com/Sebastiaanv2/wat-trek-ik-aan (public),
