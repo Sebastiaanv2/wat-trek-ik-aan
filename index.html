@@ -21,8 +21,12 @@
     font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 20px; }
+  .lang { display: flex; gap: 4px; flex-shrink: 0; }
+  .lang button { padding: 4px 10px; font-size: .85rem; background: var(--chip); color: var(--text); }
+  .lang button[aria-pressed="true"] { background: var(--accent); color: #fff; }
   .card {
     background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 16px; margin-bottom: 16px;
@@ -57,15 +61,23 @@
 </head>
 <body>
 <main>
-  <h1>What To Wear</h1>
-  <p class="sub">Clothing advice from the KNMI HARMONIE forecast. Proof of concept.</p>
+  <header>
+    <div>
+      <h1 data-i18n="title">What To Wear</h1>
+      <p class="sub" data-i18n="sub">Clothing advice from the KNMI HARMONIE forecast. Proof of concept.</p>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="nl" aria-pressed="false">NL</button>
+      <button data-lang="en" aria-pressed="false">EN</button>
+    </div>
+  </header>
 
   <!-- 1. LOCATION -->
   <section class="card">
     <div class="row">
-      <button id="btnGeo">Use my location</button>
-      <input id="citySearch" placeholder="or search a place, e.g. Utrecht">
-      <button id="btnSearch" class="secondary">Search</button>
+      <button id="btnGeo" data-i18n="useLocation">Use my location</button>
+      <input id="citySearch" data-i18n-ph="searchPh" placeholder="or search a place, e.g. Utrecht">
+      <button id="btnSearch" class="secondary" data-i18n="search">Search</button>
     </div>
     <div id="results" class="row" style="margin-top:8px"></div>
     <p id="status"></p>
@@ -74,16 +86,19 @@
   <!-- 2. TIME WINDOW + PERSONAL OFFSET -->
   <section class="card">
     <div class="row">
-      <label>Day <select id="day"><option value="0">Today</option><option value="1">Tomorrow</option></select></label>
-      <label>From <select id="fromHour"></select></label>
-      <label>To <select id="toHour"></select></label>
-      <label title="Positive if you run warm, negative if you get cold easily">
-        I run <select id="offset">
-          <option value="-4">very cold (−4°)</option>
-          <option value="-2">cold (−2°)</option>
-          <option value="0" selected>normal</option>
-          <option value="2">warm (+2°)</option>
-          <option value="4">very warm (+4°)</option>
+      <label><span data-i18n="day">Day</span> <select id="day">
+        <option value="0" data-i18n="today">Today</option>
+        <option value="1" data-i18n="tomorrow">Tomorrow</option>
+      </select></label>
+      <label><span data-i18n="from">From</span> <select id="fromHour"></select></label>
+      <label><span data-i18n="to">To</span> <select id="toHour"></select></label>
+      <label data-i18n-title="offsetTitle" title="Positive if you run warm, negative if you get cold easily">
+        <span data-i18n="iRun">I run</span> <select id="offset">
+          <option value="-4" data-i18n="veryCold">very cold (−4°)</option>
+          <option value="-2" data-i18n="cold">cold (−2°)</option>
+          <option value="0" data-i18n="normal" selected>normal</option>
+          <option value="2" data-i18n="warm">warm (+2°)</option>
+          <option value="4" data-i18n="veryWarm">very warm (+4°)</option>
         </select>
       </label>
     </div>
@@ -101,7 +116,7 @@
     <div class="tablewrap"><table id="hourly"></table></div>
   </section>
 
-  <footer>
+  <footer data-i18n-html="footer">
     Weather data: KNMI HARMONIE-AROME via <a href="https://open-meteo.com/en/docs/knmi-api">Open-Meteo</a> (CC BY 4.0).
     Clothing advice is derived by this app, not an official KNMI product.
   </footer>
@@ -131,13 +146,72 @@ const RULES = {
   bigSwing: 8,          // [own choice] °C difference that warrants layering
 };
 
-const WMO = {
-  0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast",
-  45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle",
-  56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain",
-  66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow",
-  77: "Snow grains", 80: "Light showers", 81: "Showers", 82: "Heavy showers",
-  85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm",
+/** Outfit texts per language. Temperatures arrive pre-formatted ("12°"). */
+const STRINGS = {
+  en: {
+    slot: { legs: "Legs", top: "Top", jacket: "Jacket", rain: "Rain", snow: "Snow", extras: "Extras", tip: "Tip" },
+    shorts: "Shorts", longPants: "Long pants",
+    feelsAvg: a => `Feels like ${a} on average`,
+    warmButDrops: m => `Warm on average, but drops to ${m}`,
+    shortsFrom: (a, x) => `Feels like ${a} on average, shorts start around ${x}`,
+    tshirt: "T-shirt", tshirtThin: "T-shirt + thin sweater", tshirtOver: "T-shirt + sweater over it", sweater: "Sweater",
+    coldestStill: m => `Coldest hour still feels like ${m}`,
+    coldest: m => `Coldest hour feels like ${m}`,
+    warmsUp: (m, x) => `Starts at ${m}, warms up to ${x}`,
+    noJacket: "No jacket", summerJacket: "Summer jacket", winterJacket: "Winter jacket", rainJacket: "Rain jacket",
+    waterproof: w => `${w} (waterproof)`,
+    noneNeeded: x => `${x}+ feels-like needs none`,
+    between: (m, lo, hi) => `Feels like ${m}, between ${lo} and ${hi}`,
+    below: (m, x) => `Feels like ${m}, below ${x}`,
+    snowExpected: "snow expected",
+    rainChance: p => `rain chance up to ${p}%`,
+    amount: (mm, snow) => `${mm} mm${snow ? " (water equivalent)" : ""} expected`,
+    hood: "Hood, not umbrella", gusts: (a, g) => `${a}, gusts up to ${g} km/h`,
+    hoodHat: "Hood or hat", umbrella: "Umbrella", maxChance: (a, p) => `${a}, ${p}% max chance`,
+    gloves: "gloves", hat: "hat", scarf: "scarf", warmShoes: "warm shoes",
+    coldestExtras: m => `Feels like ${m} at the coldest`,
+    layers: "Dress in layers", swings: (m, x) => `Feels-like swings ${m} to ${x}`,
+    wmo: {
+      0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Overcast",
+      45: "Fog", 48: "Rime fog", 51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle",
+      56: "Freezing drizzle", 57: "Freezing drizzle", 61: "Light rain", 63: "Rain", 65: "Heavy rain",
+      66: "Freezing rain", 67: "Freezing rain", 71: "Light snow", 73: "Snow", 75: "Heavy snow",
+      77: "Snow grains", 80: "Light showers", 81: "Showers", 82: "Heavy showers",
+      85: "Snow showers", 86: "Heavy snow showers", 95: "Thunderstorm", 96: "Thunderstorm", 99: "Thunderstorm",
+    },
+  },
+  nl: {
+    slot: { legs: "Benen", top: "Bovenlijf", jacket: "Jas", rain: "Regen", snow: "Sneeuw", extras: "Extra's", tip: "Tip" },
+    shorts: "Korte broek", longPants: "Lange broek",
+    feelsAvg: a => `Voelt gemiddeld als ${a}`,
+    warmButDrops: m => `Gemiddeld warm, maar zakt naar ${m}`,
+    shortsFrom: (a, x) => `Voelt gemiddeld als ${a}, korte broek vanaf ongeveer ${x}`,
+    tshirt: "T-shirt", tshirtThin: "T-shirt + dunne trui", tshirtOver: "T-shirt + trui erover", sweater: "Trui",
+    coldestStill: m => `Koudste uur voelt nog als ${m}`,
+    coldest: m => `Koudste uur voelt als ${m}`,
+    warmsUp: (m, x) => `Begint op ${m}, warmt op tot ${x}`,
+    noJacket: "Geen jas", summerJacket: "Zomerjas", winterJacket: "Winterjas", rainJacket: "Regenjas",
+    waterproof: w => `${w} (waterdicht)`,
+    noneNeeded: x => `Vanaf ${x} gevoelstemperatuur geen jas nodig`,
+    between: (m, lo, hi) => `Voelt als ${m}, tussen ${lo} en ${hi}`,
+    below: (m, x) => `Voelt als ${m}, onder ${x}`,
+    snowExpected: "sneeuw verwacht",
+    rainChance: p => `regenkans tot ${p}%`,
+    amount: (mm, snow) => `${mm} mm${snow ? " (als water)" : ""} verwacht`,
+    hood: "Capuchon, geen paraplu", gusts: (a, g) => `${a}, windstoten tot ${g} km/u`,
+    hoodHat: "Capuchon of muts", umbrella: "Paraplu", maxChance: (a, p) => `${a}, maximaal ${p}% kans`,
+    gloves: "handschoenen", hat: "muts", scarf: "sjaal", warmShoes: "warme schoenen",
+    coldestExtras: m => `Voelt op het koudst als ${m}`,
+    layers: "Kleed je in laagjes", swings: (m, x) => `Gevoelstemperatuur gaat van ${m} naar ${x}`,
+    wmo: {
+      0: "Helder", 1: "Overwegend helder", 2: "Half bewolkt", 3: "Bewolkt",
+      45: "Mist", 48: "Rijpmist", 51: "Lichte motregen", 53: "Motregen", 55: "Zware motregen",
+      56: "Onderkoelde motregen", 57: "Onderkoelde motregen", 61: "Lichte regen", 63: "Regen", 65: "Zware regen",
+      66: "IJzel", 67: "IJzel", 71: "Lichte sneeuw", 73: "Sneeuw", 75: "Zware sneeuw",
+      77: "Motsneeuw", 80: "Lichte buien", 81: "Buien", 82: "Zware buien",
+      85: "Sneeuwbuien", 86: "Zware sneeuwbuien", 95: "Onweer", 96: "Onweer", 99: "Onweer",
+    },
+  },
 };
 
 /** Summarise the hours inside the chosen window. */
@@ -163,70 +237,72 @@ function summarise(hours, offset = 0) {
 }
 
 /** Turn a summary into outfit slots, each with a reason. */
-function recommend(s, r = RULES) {
+function recommend(s, r = RULES, lang = "en") {
+  const T = STRINGS[lang] || STRINGS.en;
   const out = [];
   const f = n => `${Math.round(n)}°`;
   const rain = s.rainProbMax >= r.rainProbPct || s.rainSum >= r.rainSumMm;
 
   // Legs
   if (s.feelsAvg >= r.shortsMinAvg && s.feelsMin >= r.shortsMinLow) {
-    out.push({ slot: "Legs", what: "Shorts", why: `Feels like ${f(s.feelsAvg)} on average` });
+    out.push({ slot: T.slot.legs, what: T.shorts, why: T.feelsAvg(f(s.feelsAvg)) });
   } else {
-    out.push({ slot: "Legs", what: "Long pants", why: s.feelsAvg >= r.shortsMinAvg
-      ? `Warm on average, but drops to ${f(s.feelsMin)}`
-      : `Feels like ${f(s.feelsAvg)} on average, shorts start around ${r.shortsMinAvg}°` });
+    out.push({ slot: T.slot.legs, what: T.longPants, why: s.feelsAvg >= r.shortsMinAvg
+      ? T.warmButDrops(f(s.feelsMin))
+      : T.shortsFrom(f(s.feelsAvg), f(r.shortsMinAvg)) });
   }
 
   // Top
   if (s.feelsMin >= r.tshirtOnly) {
-    out.push({ slot: "Top", what: "T-shirt", why: `Coldest hour still feels like ${f(s.feelsMin)}` });
+    out.push({ slot: T.slot.top, what: T.tshirt, why: T.coldestStill(f(s.feelsMin)) });
   } else if (s.feelsMin >= r.noCoatWithSweater) {
-    out.push({ slot: "Top", what: "T-shirt + thin sweater", why: `Coldest hour feels like ${f(s.feelsMin)}` });
+    out.push({ slot: T.slot.top, what: T.tshirtThin, why: T.coldest(f(s.feelsMin)) });
   } else if (s.feelsMax >= r.tshirtOnly) {
-    out.push({ slot: "Top", what: "T-shirt + sweater over it", why: `Starts at ${f(s.feelsMin)}, warms up to ${f(s.feelsMax)}` });
+    out.push({ slot: T.slot.top, what: T.tshirtOver, why: T.warmsUp(f(s.feelsMin), f(s.feelsMax)) });
   } else {
-    out.push({ slot: "Top", what: "Sweater", why: `Coldest hour feels like ${f(s.feelsMin)}` });
+    out.push({ slot: T.slot.top, what: T.sweater, why: T.coldest(f(s.feelsMin)) });
   }
 
   // Jacket
+  const noJacket = s.feelsMin >= r.noCoatWithSweater;
   let jacket;
-  if (s.feelsMin >= r.noCoatWithSweater) jacket = { what: "No jacket", why: `${r.noCoatWithSweater}°+ feels-like needs none` };
-  else if (s.feelsMin >= r.lightJacket) jacket = { what: "Summer jacket", why: `Feels like ${f(s.feelsMin)}, between ${r.lightJacket}° and ${r.noCoatWithSweater}°` };
-  else jacket = { what: "Winter jacket", why: `Feels like ${f(s.feelsMin)}, below ${r.lightJacket}°` };
+  if (noJacket) jacket = { what: T.noJacket, why: T.noneNeeded(f(r.noCoatWithSweater)) };
+  else if (s.feelsMin >= r.lightJacket) jacket = { what: T.summerJacket, why: T.between(f(s.feelsMin), f(r.lightJacket), f(r.noCoatWithSweater)) };
+  else jacket = { what: T.winterJacket, why: T.below(f(s.feelsMin), f(r.lightJacket)) };
   if (rain) {
-    jacket.what = jacket.what === "No jacket" ? "Rain jacket" : `${jacket.what} (waterproof)`;
-    jacket.why += s.snow ? "; snow expected" : `; rain chance up to ${Math.round(s.rainProbMax)}%`;
+    jacket.what = noJacket ? T.rainJacket : T.waterproof(jacket.what);
+    jacket.why += "; " + (s.snow ? T.snowExpected : T.rainChance(Math.round(s.rainProbMax)));
   }
-  out.push({ slot: "Jacket", ...jacket });
+  out.push({ slot: T.slot.jacket, ...jacket });
 
   // Rain / snow gear
   if (rain) {
-    const kind = s.snow ? "Snow" : "Rain";
-    const amount = `${s.rainSum.toFixed(1)} mm${s.snow ? " (water equivalent)" : ""} expected`;
+    const slot = s.snow ? T.slot.snow : T.slot.rain;
+    const amount = T.amount(s.rainSum.toFixed(1), s.snow);
     if (s.gustMax > r.umbrellaMaxGust) {
-      out.push({ slot: kind, what: "Hood, not umbrella", why: `${amount}, gusts up to ${Math.round(s.gustMax)} km/h`, alert: true });
+      out.push({ slot, what: T.hood, why: T.gusts(amount, Math.round(s.gustMax)), alert: true });
     } else if (s.snow) {
-      out.push({ slot: kind, what: "Hood or hat", why: amount, alert: true });
+      out.push({ slot, what: T.hoodHat, why: amount, alert: true });
     } else {
-      out.push({ slot: kind, what: "Umbrella", why: `${amount}, ${Math.round(s.rainProbMax)}% max chance`, alert: true });
+      out.push({ slot, what: T.umbrella, why: T.maxChance(amount, Math.round(s.rainProbMax)), alert: true });
     }
   }
 
   // Extras
   const extras = [];
-  if (s.feelsMin < r.glovesHatBelow) extras.push("gloves", "hat");
-  if (s.feelsMin < r.scarfBelow) extras.push("scarf");
-  if (s.snow) extras.push("warm shoes");
-  if (extras.length) out.push({ slot: "Extras", what: cap(extras.join(", ")), why: `Feels like ${f(s.feelsMin)} at the coldest` });
+  if (s.feelsMin < r.glovesHatBelow) extras.push(T.gloves, T.hat);
+  if (s.feelsMin < r.scarfBelow) extras.push(T.scarf);
+  if (s.snow) extras.push(T.warmShoes);
+  if (extras.length) out.push({ slot: T.slot.extras, what: cap(extras.join(", ")), why: T.coldestExtras(f(s.feelsMin)) });
 
   if (s.feelsMax - s.feelsMin >= r.bigSwing) {
-    out.push({ slot: "Tip", what: "Dress in layers", why: `Feels-like swings ${f(s.feelsMin)} to ${f(s.feelsMax)}` });
+    out.push({ slot: T.slot.tip, what: T.layers, why: T.swings(f(s.feelsMin), f(s.feelsMax)) });
   }
   return out;
 }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
 
-if (typeof module !== "undefined") module.exports = { RULES, summarise, recommend, WMO };
+if (typeof module !== "undefined") module.exports = { RULES, STRINGS, summarise, recommend };
 </script>
 
 <!-- ============================================================
@@ -241,9 +317,9 @@ async function getJson(url) {
   try {
     res = await fetch(url);
   } catch {
-    throw new Error("Could not reach Open-Meteo. You may be offline, or this page is opened in a sandboxed preview that blocks network requests. Download the file and open it in a normal browser.");
+    throw new Error(t("errOffline"));
   }
-  if (!res.ok) throw new Error(`Open-Meteo answered with HTTP ${res.status}`);
+  if (!res.ok) throw new Error(t("errHttp")(res.status));
   return res.json();
 }
 
@@ -272,8 +348,8 @@ const weatherSource = {
       })),
     };
   },
-  async searchPlace(name) {
-    const params = new URLSearchParams({ name, count: 5, language: "nl", format: "json" });
+  async searchPlace(name, language = "nl") {
+    const params = new URLSearchParams({ name, count: 5, language, format: "json" });
     const d = await getJson(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
     return (d.results || []).map(p => ({
       name: [p.name, p.admin1, p.country_code].filter(Boolean).join(", "),
@@ -289,6 +365,70 @@ const weatherSource = {
 <script>
 const $ = id => document.getElementById(id);
 const state = { place: null, forecast: null };
+
+/** Interface texts per language. Outfit texts live in STRINGS (engine). */
+const UI_TEXT = {
+  en: {
+    pageTitle: "What To Wear", title: "What To Wear",
+    sub: "Clothing advice from the KNMI HARMONIE forecast. Proof of concept.",
+    useLocation: "Use my location", searchPh: "or search a place, e.g. Utrecht", search: "Search",
+    day: "Day", today: "Today", tomorrow: "Tomorrow", from: "From", to: "To",
+    iRun: "I run", offsetTitle: "Positive if you run warm, negative if you get cold easily",
+    veryCold: "very cold (−4°)", cold: "cold (−2°)", normal: "normal", warm: "warm (+2°)", veryWarm: "very warm (+4°)",
+    footer: `Weather data: KNMI HARMONIE-AROME via <a href="https://open-meteo.com/en/docs/knmi-api">Open-Meteo</a> (CC BY 4.0).
+      Clothing advice is derived by this app, not an official KNMI product.`,
+    yourLocation: "Your location",
+    loading: n => `Loading forecast for ${n}…`,
+    searching: "Searching…", nothingFound: "Nothing found.",
+    gettingLocation: "Getting your location…",
+    geoUnavailable: "Geolocation not available, use search.",
+    geoBlocked: "Location blocked or unavailable, use search instead.",
+    noHours: "No forecast hours in that window. Check From/To.",
+    noTemp: "Forecast has no temperature data for that window.",
+    errOffline: "Could not reach Open-Meteo. You may be offline, or this page is opened in a sandboxed preview that blocks network requests. Download the file and open it in a normal browser.",
+    errHttp: s => `Open-Meteo answered with HTTP ${s}`,
+    statTemp: "Temp", statFeels: "Feels like", statRain: "Rain", statGusts: "Gusts",
+    thTime: "Time", thTemp: "Temp", thFeels: "Feels", thRain: "Rain %", thMm: "mm", thGust: "Gust", thSky: "Sky",
+  },
+  nl: {
+    pageTitle: "Wat trek ik aan?", title: "Wat trek ik aan?",
+    sub: "Kledingadvies op basis van de KNMI HARMONIE-verwachting. Proof of concept.",
+    useLocation: "Gebruik mijn locatie", searchPh: "of zoek een plaats, bijv. Utrecht", search: "Zoeken",
+    day: "Dag", today: "Vandaag", tomorrow: "Morgen", from: "Van", to: "Tot",
+    iRun: "Ik heb het", offsetTitle: "Positief als je het snel warm hebt, negatief als je het snel koud hebt",
+    veryCold: "snel heel koud (−4°)", cold: "snel koud (−2°)", normal: "normaal", warm: "snel warm (+2°)", veryWarm: "snel heel warm (+4°)",
+    footer: `Weergegevens: KNMI HARMONIE-AROME via <a href="https://open-meteo.com/en/docs/knmi-api">Open-Meteo</a> (CC BY 4.0).
+      Het kledingadvies komt van deze app en is geen officieel KNMI-product.`,
+    yourLocation: "Je locatie",
+    loading: n => `Verwachting laden voor ${n}…`,
+    searching: "Zoeken…", nothingFound: "Niets gevonden.",
+    gettingLocation: "Locatie ophalen…",
+    geoUnavailable: "Locatiebepaling niet beschikbaar, gebruik zoeken.",
+    geoBlocked: "Locatie geblokkeerd of niet beschikbaar, gebruik zoeken.",
+    noHours: "Geen verwachting in dat tijdvak. Controleer Van/Tot.",
+    noTemp: "Geen temperatuurgegevens voor dat tijdvak.",
+    errOffline: "Open-Meteo is niet bereikbaar. Mogelijk ben je offline, of deze pagina draait in een afgeschermde preview die netwerkverkeer blokkeert. Download het bestand en open het in een gewone browser.",
+    errHttp: s => `Open-Meteo antwoordde met HTTP ${s}`,
+    statTemp: "Temp", statFeels: "Voelt als", statRain: "Regen", statGusts: "Windstoten",
+    thTime: "Tijd", thTemp: "Temp", thFeels: "Voelt", thRain: "Regen %", thMm: "mm", thGust: "Windst.", thSky: "Lucht",
+  },
+};
+
+// Language: saved choice, else browser language, else English
+let lang = "en";
+try { lang = localStorage.getItem("wtw-lang") || ""; } catch {}
+if (!UI_TEXT[lang]) lang = (navigator.language || "").toLowerCase().startsWith("nl") ? "nl" : "en";
+const t = key => UI_TEXT[lang][key];
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.title = t("pageTitle");
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-html]").forEach(el => el.innerHTML = t(el.dataset.i18nHtml));
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  document.querySelectorAll("[data-i18n-title]").forEach(el => el.title = t(el.dataset.i18nTitle));
+  document.querySelectorAll("[data-lang]").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === lang));
+}
 
 function setStatus(msg, isError = false) {
   $("status").textContent = msg;
@@ -311,9 +451,12 @@ function setStatus(msg, isError = false) {
 // Remember personal offset (per browser, best effort)
 try { const o = localStorage.getItem("wtw-offset"); if (o !== null) $("offset").value = o; } catch {}
 
+// Geolocated places have name null, so their label follows the language
+const placeName = p => p.name ?? t("yourLocation");
+
 async function loadPlace(place) {
   state.place = place;
-  setStatus(`Loading forecast for ${place.name}…`);
+  setStatus(t("loading")(placeName(place)));
   try {
     state.forecast = await weatherSource.getForecast(place.lat, place.lon);
     setStatus("");
@@ -340,27 +483,28 @@ function render() {
   const hours = hoursInWindow();
   const offset = Number($("offset").value);
   if (!hours.length) {
-    setStatus("No forecast hours in that window. Check From/To.", true);
+    setStatus(t("noHours"), true);
     $("resultCard").hidden = $("hourlyCard").hidden = true;
     return;
   }
   const s = summarise(hours, offset);
   if (!s) {
-    setStatus("Forecast has no temperature data for that window.", true);
+    setStatus(t("noTemp"), true);
     $("resultCard").hidden = $("hourlyCard").hidden = true;
     return;
   }
   setStatus("");
-  const outfit = recommend(s);
+  const outfit = recommend(s, RULES, lang);
+  const wmo = STRINGS[lang].wmo;
   const deg = v => v == null ? "–" : `${Math.round(v)}°`;
   const num = (v, d = 0) => v == null ? "–" : v.toFixed(d);
 
-  $("placeName").textContent = state.place.name;
+  $("placeName").textContent = placeName(state.place);
   $("stats").innerHTML = `
-    <span>Temp <b>${deg(s.tempMin)} to ${deg(s.tempMax)}</b></span>
-    <span>Feels like <b>${Math.round(s.feelsMin - offset)}° to ${Math.round(s.feelsMax - offset)}°</b></span>
-    <span>Rain <b>${s.rainSum.toFixed(1)} mm</b></span>
-    <span>Gusts <b>${Math.round(s.gustMax)} km/h</b></span>`;
+    <span>${t("statTemp")} <b>${deg(s.tempMin)} – ${deg(s.tempMax)}</b></span>
+    <span>${t("statFeels")} <b>${deg(s.feelsMin - offset)} – ${deg(s.feelsMax - offset)}</b></span>
+    <span>${t("statRain")} <b>${s.rainSum.toFixed(1)} mm</b></span>
+    <span>${t("statGusts")} <b>${Math.round(s.gustMax)} km/h</b></span>`;
   $("outfit").innerHTML = outfit.map(o => `
     <div class="item${o.alert ? " alert" : ""}">
       <div class="slot">${o.slot}</div>
@@ -369,33 +513,40 @@ function render() {
     </div>`).join("");
 
   $("hourly").innerHTML = `
-    <tr><th>Time</th><th>Temp</th><th>Feels</th><th>Rain %</th><th>mm</th><th>Gust</th><th>Sky</th></tr>` +
+    <tr><th>${t("thTime")}</th><th>${t("thTemp")}</th><th>${t("thFeels")}</th><th>${t("thRain")}</th>
+    <th>${t("thMm")}</th><th>${t("thGust")}</th><th>${t("thSky")}</th></tr>` +
     hours.map(h => `<tr>
       <td>${h.time.slice(11, 16)}</td><td>${deg(h.temp)}</td><td>${deg(h.feels)}</td>
       <td>${h.precipProb ?? "–"}</td><td>${num(h.precip, 1)}</td><td>${num(h.gust)}</td>
-      <td>${WMO[h.code] ?? h.code}</td></tr>`).join("");
+      <td>${wmo[h.code] ?? h.code}</td></tr>`).join("");
 
   $("resultCard").hidden = $("hourlyCard").hidden = false;
 }
 
 // Events
+document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => {
+  lang = b.dataset.lang;
+  try { localStorage.setItem("wtw-lang", lang); } catch {}
+  applyLang();
+  render();
+});
 $("btnGeo").onclick = () => {
-  if (!navigator.geolocation) return setStatus("Geolocation not available, use search.", true);
-  setStatus("Getting your location…");
+  if (!navigator.geolocation) return setStatus(t("geoUnavailable"), true);
+  setStatus(t("gettingLocation"));
   navigator.geolocation.getCurrentPosition(
-    p => loadPlace({ name: "Your location", lat: p.coords.latitude, lon: p.coords.longitude }),
-    () => setStatus("Location blocked or unavailable, use search instead.", true),
+    p => loadPlace({ name: null, lat: p.coords.latitude, lon: p.coords.longitude }),
+    () => setStatus(t("geoBlocked"), true),
     { timeout: 10000 }
   );
 };
 async function doSearch() {
   const q = $("citySearch").value.trim();
   if (!q) return;
-  setStatus("Searching…");
+  setStatus(t("searching"));
   try {
-    const places = await weatherSource.searchPlace(q);
+    const places = await weatherSource.searchPlace(q, lang);
     $("results").innerHTML = "";
-    if (!places.length) return setStatus("Nothing found.", true);
+    if (!places.length) return setStatus(t("nothingFound"), true);
     setStatus("");
     if (places.length === 1) return loadPlace(places[0]);
     places.forEach(p => {
@@ -422,6 +573,8 @@ $("offset").onchange = () => {
   try { localStorage.setItem("wtw-offset", $("offset").value); } catch {}
   render();
 };
+
+applyLang();
 </script>
 </body>
 </html>

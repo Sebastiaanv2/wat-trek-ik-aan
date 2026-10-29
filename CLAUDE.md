@@ -41,7 +41,14 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
 2. FIXED: null API values. `summarise()` skips nulls (returns null if no feels data), table shows "–".
 3. FIXED: default "from" hour now uses Amsterdam time.
 4. FIXED: From/To selects drag each other along so From <= To.
-5. OPEN: page is English (`lang="en"`, "What To Wear"), repo/README use the Dutch name. Owner to decide.
+5. RESOLVED: NL/EN switch added (see Languages).
+
+## Languages
+- Outfit texts + WMO weather names: `STRINGS.{en,nl}` in the engine; `recommend(s, RULES, lang)`.
+- Interface texts: `UI_TEXT.{en,nl}` in the UI script; static elements use `data-i18n`, `data-i18n-html`,
+  `data-i18n-ph` (placeholder), `data-i18n-title`.
+- Choice stored in localStorage `wtw-lang`; default follows `navigator.language` (nl* → nl, else en).
+- Adding a language = add a key to both tables. Known gap: decimals use "." in Dutch too ("1.0 mm").
 
 ## Next steps
 1. DONE 2026-10-29: repo https://github.com/Sebastiaanv2/wat-trek-ik-aan (public),
