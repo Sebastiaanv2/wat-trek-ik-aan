@@ -47,8 +47,8 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
 5. Page is English (`lang="en"`, "What To Wear"), repo/README use the Dutch name. Owner to decide.
 
 ## Next steps
-1. Push to GitHub, enable Pages (main / root): `gh repo create wat-trek-ik-aan --public --source . --push`,
-   then `gh api -X POST repos/{owner}/wat-trek-ik-aan/pages -f "source[branch]=main" -f "source[path]=/"`.
+1. DONE 2026-10-29: repo https://github.com/Sebastiaanv2/wat-trek-ik-aan (public),
+   Pages (main / root) at https://sebastiaanv2.github.io/wat-trek-ik-aan/
 2. First real run: check the API response matches the adapter's field mapping.
 3. Calibrate thresholds against the owner's actual experience.
 
