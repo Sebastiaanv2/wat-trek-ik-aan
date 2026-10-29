@@ -36,6 +36,16 @@ scarf < 5, gloves + hat < 2, "dress in layers" at an 8° swing.
   Must run in a real browser or on GitHub Pages.
 - Geolocation needs HTTPS or localhost.
 
+## Known issues (code review 2026-10-29, not fixed yet)
+1. [Inference] `precipitation_probability` may be all null for `knmi_seamless` (HARMONIE is deterministic).
+   `summarise()` treats null as 0, so rain then only triggers on `rainSum >= 0.5 mm`. Verify on first live run.
+2. Hourly table crashes if the API returns null precip: `h.precip.toFixed(1)` in `render()`.
+   Null temp/gust silently become 0 in `Math.round`/`Math.max`.
+3. Default "from" hour uses browser local time (`new Date().getHours()`), filter uses Amsterdam time.
+   Only wrong outside the NL timezone.
+4. From > To gives an empty window. Error shown, but the UI doesn't prevent it.
+5. Page is English (`lang="en"`, "What To Wear"), repo/README use the Dutch name. Owner to decide.
+
 ## Next steps
 1. Push to GitHub, enable Pages (main / root): `gh repo create wat-trek-ik-aan --public --source . --push`,
    then `gh api -X POST repos/{owner}/wat-trek-ik-aan/pages -f "source[branch]=main" -f "source[path]=/"`.
